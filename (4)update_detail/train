@@ -1,0 +1,37 @@
+1.先执行HelloMessage，在HelloMessage中执行createClass方法(518)
+2.在createClass中，他返回了一个定义的 Constructor = function (props)对象方法。在该方法的原型上绑定了这个自定义元素的所有事件，比如
+var Constructor = function (props) {
+    this.props = props;//注意此时props还没传，执行到344行才传入的props是
+    this.state = this.getInitialState ? this.getInitialState() : null;
+    Constructor.prototype上绑着自定义元素的所有方法
+}(453行)
+3.接下来继续518行执行createElement
+  createElement: function (type, config, children) type是Constructor对象方法，config可以理解为要传递的参数，children是在DOM中的参数
+4.createElement中定义了props，然后通过一个for循环把config里面的对象塞到props的数组中(473)，再把children中的数据放到props.children中(480)。
+5.随后执行返回实例化的ReactElement(type, key, props)，其中type props已知(490)。
+    ReactElement函数中把type, key, props分别绑到了this上(436),谨记自定义元素的方法都写在了自定义对象的原型链上,type就是自定义的元素。
+    function ReactElement(type, key, props) {
+        this.type = type //Constructor，原型链上绑着自定义中的方法;
+        this.key = key;
+        this.props = props;
+    }
+6.回到518行，此时该执行render函数了，render: function (element, container) element是传入元素的类型，在这里传入的是事件对象
+7.在render中首要判断渲染元素类型，在417行执行判断函数，本次判断他是一个自定义的对象元素，因此执行实例化的ReactCompositeComponen(node) (328)
+    其中this._currentElement = node;存放了该自定义元素所有的信息 (330)(type是自定义元素的所有东西。props是要展现的内容)
+8.接下来执行ReactCompositeComponen.mountComponent方法(494)，在该方法中首先把自定义对象实例化，并且把props中的数据传入 var inst = new ReactClass(publicProps);(344)
+  把实例化的数据绑到 this._instance上(345)，为了保存对后续的操作把该对象的this塞到inst中(347)。
+  之后执行自定义元素中的render()方法，渲染普通的dom元素，该过程实为执行返回createElement的过程(353)，之后执行分类判断，返回渲染出来的div(355)
+  再次返回这个div给#container
+
+
+9.在自定义元素Constructor.prototype上绑着changeType方法，当点击触发该方法时， this.props.name会先被修改。之后他会实行setState方法(449)
+  第一步融合新旧state(371)，在 var inst = this._instance中由于mount中(345)的方法_instance绑了很多东西。
+    props: {name: "我已经被异步更新了，由于我使用了lastindex，所以大部分节点不需要被删除"}
+    state : {type: "say:"} 
+    _reactInternalInstance : 
+        ReactCompositeComponent：
+            {_currentElement: ReactElement, _rootNodeID: 0, _instance: Constructor, _renderedComponent: ReactDOMComponent}
+    __proto__:ReactClass 绑着自定义元素的所有方法
+10.由于上文state已经被修改，遂重新执行自定义元素的render()方法(382)，所以就有了俩个元素prevRenderedElement和 nextRenderedElement判断这俩个元素是不是同类型(385)
+    由于是同类型的元素，就继续调用子节点的receiveComponent的方法，传入新的element更新子节点。(386，88)
+    更新通过遍历原来的children数组，找差异替换(99)
